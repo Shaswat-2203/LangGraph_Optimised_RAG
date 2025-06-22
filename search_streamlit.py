@@ -4,6 +4,7 @@ from collections import Counter
 from itertools import chain
 from typing_extensions import TypedDict
 
+import os
 import google.generativeai as genai
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
@@ -31,7 +32,7 @@ def queryEnhancer(state: State):
     
     Task:
     1. Read the user’s natural-language query.
-    2. Derive exactly **three** distinct, meaningful subqueries that together cover the core information needs.
+    2. Derive exactly **three** distinct, meaningful subqueries in English that together cover the core information needs.
     3. **Respond with nothing except a JSON/array literal containing those three subqueries** (strictly using comma-separated, no brackets and extra spaces).  
        • No keys, labels, numbering, or extra commentary.  
        • Example format: subquery 1, subquery 2, subquery 3
@@ -87,7 +88,7 @@ def searchRelevantPages(state: State):
 def filterPages(state: State):
     user_query = state["user_query"]
     totalContext = "\n\n".join(state["queryAnswers"])
-    SYSTEM_PROMPT =f"""
+    SYSTEM_PROMPT = f"""
         You are an AI expert in understanding and finding relevant detailed information from given context so that it matches with user query the most.
         Return the most relevant answer. 
         Total Context:\n{totalContext}\n\n
@@ -140,8 +141,8 @@ def hiteshSirPersona(state: State):
     10. “Kabhi kabhi failure se zyada seekhne ko milta hai. Main bhi crash course banate waqt bahut kuch barbaad kar chuka hoon.”
     
     **Your goal:
-    ** Emulate Hitesh Choudhary's mind — break down user query's problem, motivate learners, and guide them step-by-step in Hinglish with energy, humor, and chai-fueled wisdom.
-    ** You should understand user query and the given answer(scrapped from chai-docs which is your own website) below and answer it in your way of speaking and also give them the web page.
+    ** Emulate Hitesh Choudhary's mind — break down user query's problem, motivate learners, and guide them step-by-step in Hinglish(Hindi with english) with energy, humor, and chai-fueled wisdom.
+    ** You should understand user query and the given answer(scrapped from chai-docs which is your own website) below and answer it in your way of speaking(write in mix of Hindi and English and not use any other language) and also give them the web page.
     
     User query: {user_query}
     Answer: {answer}
@@ -193,10 +194,17 @@ with st.sidebar:
 
 # ---- Ensure resources are initialised once the key is provided ----
 if api_key:
+    # Configure both the Google GenAI SDK **and** set env‑var fallback so
+    # downstream libraries (e.g. langchain_google_genai) pick it up even if they
+    # rely on the env‑var style.
+    os.environ["GOOGLE_API_KEY"] = api_key
     genai.configure(api_key=api_key)
 
     if "VECTOR_DB" not in st.session_state:
-        embedding_model = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+        embedding_model = GoogleGenerativeAIEmbeddings(
+            model="models/text-embedding-004",
+            google_api_key=api_key,  # pass explicitly to avoid ADC lookup
+        )
         st.session_state["VECTOR_DB"] = QdrantVectorStore.from_existing_collection(
             url="https://e59dfb81-bb98-4eb6-9806-f172c977a89f.us-east-1-0.aws.cloud.qdrant.io:6333",
             api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.EhU0hmKfZ9p-LYubvLHcF7aQg-piIYam2L1qK7CdAnE",
@@ -231,7 +239,7 @@ if api_key:
             ("Thinking", queryEnhancer),
             ("Observing", searchRelevantPages),
             ("Filtering", filterPages),
-            ("Hitesh Sir is connecting", hiteshSirPersona),
+            ("Hitesh Sir is connecting", hiteshSirPersona),
         ]
         progress = {label: False for label, _ in steps}
 
