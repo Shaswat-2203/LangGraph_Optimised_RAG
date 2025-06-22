@@ -204,6 +204,7 @@ if api_key:
         embedding_model = GoogleGenerativeAIEmbeddings(
             model="models/text-embedding-004",
             google_api_key=api_key,  # pass explicitly to avoid ADC lookup
+            transport = "rest"
         )
         st.session_state["VECTOR_DB"] = QdrantVectorStore.from_existing_collection(
             url="https://e59dfb81-bb98-4eb6-9806-f172c977a89f.us-east-1-0.aws.cloud.qdrant.io:6333",
